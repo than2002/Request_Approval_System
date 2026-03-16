@@ -105,11 +105,11 @@ const requestSchema = new mongoose.Schema({
     default: 'draft',
   },
 
-  priority: {
+  /* priority: {
     type: String,
     enum: ['low', 'medium', 'high'],
     default: 'medium',
-  },
+  }, */
 
   rejectionReason: String,
 

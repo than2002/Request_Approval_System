@@ -10,29 +10,31 @@ const createRoles = async () => {
         await mongoose.connect(process.env.MONGO_URI);
         console.log("Connected to MongoDB");
 
-        // Use the email they specified in their screenshot
-        const managerEmail = "thaniyaa02@gmail.com"; 
-        const seniorManagerEmail = "PUT_SENIOR_TEST_EMAIL_HERE@gmail.com"; 
-        const approverEmail = "PUT_APPROVER_TEST_EMAIL_HERE@gmail.com"; 
 
         const usersToCreate = [
             {
-                name: "Thaniya (Manager)",
-                email: managerEmail,
+                name: "System Administrator",
+                email: "admin@jbmgroup.com",
+                password: "password123",
+                role: "admin"
+            },
+            {
+                name: "Level 1 Manager",
+                email: "manager1@jbmgroup.com",
                 password: "password123",
                 role: "manager",
                 approvalLevel: 1
             },
             {
-                name: "Senior Manager User",
-                email: seniorManagerEmail,
+                name: "Level 2 Senior Manager",
+                email: "manager2@jbmgroup.com",
                 password: "password123",
                 role: "senior-manager",
                 approvalLevel: 2
             },
             {
-                name: "Approver User",
-                email: approverEmail,
+                name: "Level 3 Approver",
+                email: "manager3@jbmgroup.com",
                 password: "password123",
                 role: "approver",
                 approvalLevel: 3

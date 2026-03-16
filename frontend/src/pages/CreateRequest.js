@@ -25,7 +25,7 @@ const CreateRequest = () => {
     try {
       setLoading(true);
       setError(null);
-      // Create request endpoint outputs status 'draft' by default
+      // Create request
       const res = await axios.post("/requests", formData);
       // Automatically submit it for Level 1 Approval
       await axios.patch(`/requests/${res.data.request._id}/submit`);
@@ -41,28 +41,44 @@ const CreateRequest = () => {
     <Layout>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px" }}>
         <h2>Create New T-Code Request</h2>
-        <button className="btn-primary" style={{ background: "transparent", border: "1px solid var(--glass-border)" }} onClick={() => navigate("/requests")}>
+        <button
+          className="btn-primary"
+          style={{
+            background: "#3b82f6",
+            color: "#ffffff",
+
+            boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
+            fontWeight: "600"
+          }}
+          onClick={() => navigate("/requests")}
+          onMouseOver={(e) => {
+            e.currentTarget.style.background = "#3b82f6";
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.background = "#3b82f6";
+          }}
+        >
           Cancel
         </button>
       </div>
 
       <div className="glass-card" style={{ maxWidth: "800px", margin: "0 auto" }}>
         {error && <div style={{ color: "var(--status-rejected)", marginBottom: "1rem", padding: "1rem", background: "rgba(239, 68, 68, 0.1)", borderRadius: "8px" }}>{error}</div>}
-        
+
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
             <div>
               <label style={labelStyle}>Request Title *</label>
               <input type="text" name="title" className="glass-input" value={formData.title} onChange={handleChange} required placeholder="e.g. Sales Order Access" />
             </div>
-            <div>
+            {/* <div>
               <label style={labelStyle}>Priority</label>
               <select name="priority" className="glass-input" value={formData.priority} onChange={handleChange}>
-                <option value="low" style={{color: "black"}}>Low</option>
-                <option value="medium" style={{color: "black"}}>Medium</option>
-                <option value="high" style={{color: "black"}}>High</option>
+                <option value="low" style={{ color: "black" }}>Low</option>
+                <option value="medium" style={{ color: "black" }}>Medium</option>
+                <option value="high" style={{ color: "black" }}>High</option>
               </select>
-            </div>
+            </div> */}
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
@@ -80,7 +96,7 @@ const CreateRequest = () => {
             <label style={labelStyle}>Business Justification *</label>
             <textarea name="businessJustification" className="glass-input" value={formData.businessJustification} onChange={handleChange} required rows="4" placeholder="Explain why you need access to this T-Code..."></textarea>
           </div>
-          
+
           <div>
             <label style={labelStyle}>Additional Description</label>
             <textarea name="description" className="glass-input" value={formData.description} onChange={handleChange} rows="2" placeholder="Any extra notes..."></textarea>

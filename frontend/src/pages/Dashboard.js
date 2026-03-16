@@ -3,6 +3,7 @@ import Layout from "../layout/Layout";
 import { AuthContext } from "../context/AuthContext";
 import axios from "../api/axios";
 import { useNavigate } from "react-router-dom";
+import RequestDetailsModal from "../components/RequestDetailsModal";
 
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
@@ -14,6 +15,8 @@ const Dashboard = () => {
     rejected: 0,
   });
   const [recentRequests, setRecentRequests] = useState([]);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchDashboardData = useCallback(async () => {
@@ -21,7 +24,7 @@ const Dashboard = () => {
       setLoading(true);
       // Determine endpoints based on role
       const isManager = ["manager", "senior-manager", "approver", "admin"].includes(user?.role);
-      
+
       let res;
       if (isManager) {
         // Fetch manager dashboard stats
@@ -40,7 +43,7 @@ const Dashboard = () => {
         // Fetch user requests
         res = await axios.get("/requests");
         const requests = res.data.requests;
-        
+
         let pending = 0, approved = 0, rejected = 0;
         requests.forEach(req => {
           if (req.overallStatus === 'approved') approved++;
@@ -54,7 +57,7 @@ const Dashboard = () => {
           approved,
           rejected
         });
-        setRecentRequests(requests.slice(0, 5)); // show latest 5
+        setRecentRequests(requests.slice(0, 5));
       }
 
     } catch (error) {
@@ -86,7 +89,7 @@ const Dashboard = () => {
     <Layout>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px" }}>
         <h2>Dashboard Overview</h2>
-        {!["manager", "senior-manager", "approver"].includes(user?.role) && (
+        {(user?.role === "user" || !user?.role) && (
           <button className="btn-primary" onClick={() => navigate("/create-request")}>Create Request</button>
         )}
       </div>
@@ -145,7 +148,14 @@ const Dashboard = () => {
                             </span>
                           </td>
                           <td>
-                            <button className="btn-primary" style={{ padding: "0.4rem 0.8rem", fontSize: "0.8rem", marginRight: "10px" }}>
+                            <button
+                              className="btn-primary"
+                              style={{ padding: "0.4rem 0.8rem", fontSize: "0.8rem", marginRight: "10px" }}
+                              onClick={() => {
+                                setSelectedRequest({ ...req, currentUserRole: user?.role });
+                                setIsModalOpen(true);
+                              }}
+                            >
                               View Details
                             </button>
                           </td>
@@ -169,8 +179,8 @@ const Dashboard = () => {
               <p style={{ color: "var(--text-muted)", marginTop: "10px", marginBottom: "30px" }}>
                 You can create a new request or view the status of your existing requests using the sidebar menu.
               </p>
-              <button 
-                className="btn-primary" 
+              <button
+                className="btn-primary"
                 onClick={() => navigate("/create-request")}
                 style={{ fontSize: "1.1rem", padding: "12px 30px" }}
               >
@@ -180,6 +190,11 @@ const Dashboard = () => {
           )}
         </>
       )}
+      <RequestDetailsModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        request={selectedRequest}
+      />
     </Layout>
   );
 };

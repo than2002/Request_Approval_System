@@ -7,7 +7,8 @@ const { sendApprovalEmail, sendFinalApprovalEmail, sendRejectionEmail } = requir
 const roleLevelMap = {
   manager: 1,
   'senior-manager': 2,
-  approver: 3
+  approver: 3,
+  admin: 'all' // Added admin to see everything
 };
 
 //  GET ALL APPROVALS
@@ -42,9 +43,11 @@ exports.getPendingApprovals = async (req, res) => {
       });
     }
 
-    const requests = await Request.find({
-      overallStatus: `level${userLevel}_pending`
-    }).populate("requestedBy", "name email");
+    const query = user.role === 'admin'
+      ? { overallStatus: { $in: ['level1_pending', 'level2_pending', 'level3_pending'] } }
+      : { overallStatus: `level${userLevel}_pending` };
+
+    const requests = await Request.find(query).populate("requestedBy", "name email");
 
     res.json({
       success: true,
@@ -246,9 +249,11 @@ exports.getManagerDashboard = async (req, res) => {
       });
     }
 
-    const pendingCount = await Request.countDocuments({
-      overallStatus: `level${userLevel}_pending`
-    });
+    const query = user.role === 'admin'
+      ? { overallStatus: { $in: ['level1_pending', 'level2_pending', 'level3_pending'] } }
+      : { overallStatus: `level${userLevel}_pending` };
+
+    const pendingCount = await Request.countDocuments(query);
 
     const approvedCount = await Request.countDocuments({
       overallStatus: 'approved'
@@ -298,7 +303,7 @@ exports.quickAction = async (req, res) => {
     const { requestId, managerId, action, level } = decoded;
 
     const request = global.MOCK_DB ? global.MOCK_DB.requests.find(r => r._id === requestId) : await Request.findById(requestId);
-    
+
     if (!request) {
       return res.status(404).send('<h1>Request Not Found</h1>');
     }
@@ -317,13 +322,13 @@ exports.quickAction = async (req, res) => {
 
       if (level === 3) {
         request.overallStatus = "approved";
-        
+
         // Email original requester
         const requester = global.MOCK_DB ? global.MOCK_DB.users.find(u => u._id === request.requestedBy || u.id === request.requestedBy) : await User.findById(request.requestedBy);
         if (requester && requester.email) await sendFinalApprovalEmail(requester.email, request);
       } else {
         request.overallStatus = `level${level + 1}_pending`;
-        
+
         // Email next manager
         const nextRole = level === 1 ? 'senior-manager' : 'approver';
         const nextManager = global.MOCK_DB ? global.MOCK_DB.users.find(u => u.role === nextRole) : await User.findOne({ role: nextRole });
@@ -347,7 +352,7 @@ exports.quickAction = async (req, res) => {
     // Send visual HTML response directly to browser
     const color = action === 'approve' ? '#28a745' : '#dc3545';
     const textContext = action === 'approve' ? 'Successfully Approved!' : 'Request Rejected.';
-    
+
     res.send(`
       <div style="font-family: sans-serif; text-align: center; margin-top: 50px;">
         <h1 style="color: ${color};">${textContext}</h1>

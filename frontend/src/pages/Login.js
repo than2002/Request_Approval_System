@@ -22,11 +22,14 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(""); // Clear previous errors
     try {
       await login(form.email, form.password);
       navigate("/dashboard");
     } catch (err) {
-      setError("Invalid email or password");
+      console.error("Login failed:", err);
+      const message = err.response?.data?.message || "Connection failed. Please check your backend URL.";
+      setError(message);
     }
   };
 

@@ -1,14 +1,21 @@
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
-// Configured to fail gracefully and log to console if SMTP credentials are missing
+require('dotenv').config();
+
 const createTransporter = () => {
   if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
     return nodemailer.createTransport({
-      service: 'gmail', // or configured host
+      host: 'smtp.office365.com',
+      port: 587,
+      secure: false,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
+      tls: {
+        ciphers: 'SSLv3',
+        rejectUnauthorized: false
+      }
     });
   }
   return null;
@@ -22,7 +29,7 @@ const sendEmail = async (to, subject, html) => {
     console.log(`[EMAIL MOCK] To: ${to} | Subject: ${subject}`);
     return;
   }
-  
+
   try {
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
@@ -40,14 +47,14 @@ const generateActionToken = (requestId, managerId, action, level) => {
   return jwt.sign(
     { requestId, managerId, action, level },
     process.env.JWT_SECRET || 'your_jwt_secret_key',
-    { expiresIn: '7d' } 
+    { expiresIn: '7d' }
   );
 };
 
 const sendNewRequestEmail = async (manager, request) => {
   const approveToken = generateActionToken(request._id.toString(), manager._id.toString(), 'approve', request.approvalWorkflow.level1 ? 1 : null);
   const rejectToken = generateActionToken(request._id.toString(), manager._id.toString(), 'reject', request.approvalWorkflow.level1 ? 1 : null);
-  
+
   const baseUrl = process.env.PUBLIC_URL || 'http://localhost:5001';
   const approveUrl = `${baseUrl}/api/approvals/quick-action/${approveToken}`;
   const rejectUrl = `${baseUrl}/api/approvals/quick-action/${rejectToken}`;
@@ -57,7 +64,7 @@ const sendNewRequestEmail = async (manager, request) => {
     <h2>A new request requires your attention</h2>
     <p><strong>Title:</strong> ${request.title}</p>
     <p><strong>Type:</strong> ${request.requestType}</p>
-    <p><strong>Priority:</strong> ${request.priority}</p>
+   /* <p><strong>Priority:</strong> ${request.priority}</p> */
     <br/>
     <a href="${approveUrl}" style="padding: 10px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; margin-right: 15px;">Approve Request</a>
     <a href="${rejectUrl}" style="padding: 10px 20px; background-color: #dc3545; color: white; text-decoration: none; border-radius: 5px;">Reject Request</a>
@@ -70,7 +77,7 @@ const sendNewRequestEmail = async (manager, request) => {
 const sendApprovalEmail = async (nextManager, request, level) => {
   const approveToken = generateActionToken(request._id.toString(), nextManager._id.toString(), 'approve', level);
   const rejectToken = generateActionToken(request._id.toString(), nextManager._id.toString(), 'reject', level);
-  
+
   const baseUrl = process.env.PUBLIC_URL || 'http://localhost:5001';
   const approveUrl = `${baseUrl}/api/approvals/quick-action/${approveToken}`;
   const rejectUrl = `${baseUrl}/api/approvals/quick-action/${rejectToken}`;

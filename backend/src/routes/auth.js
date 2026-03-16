@@ -43,4 +43,18 @@ router
   .get(authenticate, AuthController.getProfile)
   .put(authenticate, AuthController.updateProfile);
 
+/**
+ * @route   GET /api/auth/users
+ * @desc    Get all users
+ * @access  Private (Admin Only)
+ */
+router.get('/users', authenticate, authorize('admin'), AuthController.getAllUsers);
+
+/**
+ * @route   DELETE /api/auth/users/:id
+ * @desc    Delete a user
+ * @access  Private (Admin Only)
+ */
+router.delete('/users/:id', authenticate, authorize('admin'), AuthController.deleteUser);
+
 module.exports = router;

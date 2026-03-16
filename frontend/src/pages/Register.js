@@ -24,15 +24,14 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(""); // Clear previous errors
     try {
       await register(form);
       navigate("/dashboard");
     } catch (err) {
-      if (err.response && err.response.data && err.response.data.message) {
-        setError(err.response.data.message);
-      } else {
-        setError("Registration failed. Please check your inputs.");
-      }
+      console.error("Registration failed:", err);
+      const message = err.response?.data?.message || "Connection failed. Please check your backend URL configuration.";
+      setError(message);
     }
   };
 

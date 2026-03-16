@@ -4,14 +4,14 @@ const router = express.Router();
 const { authenticate, authorize } = require('../middleware/authmiddleware');
 const ApprovalController = require('../controllers/approvalController');
 
-// Quick Action (Email Link Webhook)
+// Quick Action - (Email Link Webhook)
 router.get('/quick-action/:token', ApprovalController.quickAction);
 
 // Get all approvals (protected)
 router.get(
   '/',
   authenticate,
-  authorize(['manager', 'senior-manager', 'approver']),
+  authorize('manager', 'senior-manager', 'approver', 'admin'),
   ApprovalController.getApprovals
 );
 
@@ -19,7 +19,7 @@ router.get(
 router.get(
   '/pending',
   authenticate,
-  authorize(['manager', 'senior-manager', 'approver']),
+  authorize('manager', 'senior-manager', 'approver', 'admin'),
   ApprovalController.getPendingApprovals
 );
 
@@ -27,7 +27,7 @@ router.get(
 router.get(
   '/history/:requestId',
   authenticate,
-  authorize(['manager', 'senior-manager', 'approver']),
+  authorize('manager', 'senior-manager', 'approver', 'admin'),
   ApprovalController.getApprovalHistory
 );
 
@@ -35,7 +35,7 @@ router.get(
 router.post(
   '/:requestId/level/:level/approve',
   authenticate,
-  authorize(['manager', 'senior-manager', 'approver']),
+  authorize('manager', 'senior-manager', 'approver', 'admin'),
   ApprovalController.approveRequest
 );
 
@@ -43,7 +43,7 @@ router.post(
 router.post(
   '/:requestId/level/:level/reject',
   authenticate,
-  authorize(['manager', 'senior-manager', 'approver']),
+  authorize('manager', 'senior-manager', 'approver', 'admin'),
   ApprovalController.rejectRequest
 );
 
@@ -51,7 +51,7 @@ router.post(
 router.get(
   '/dashboard/stats',
   authenticate,
-  authorize(['manager', 'senior-manager', 'approver']),
+  authorize('manager', 'senior-manager', 'approver', 'admin'),
   ApprovalController.getManagerDashboard
 );
 

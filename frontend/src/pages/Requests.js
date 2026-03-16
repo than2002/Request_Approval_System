@@ -1,11 +1,15 @@
 import { useState, useEffect, useContext } from "react";
+import { Link } from "react-router-dom";
 import Layout from "../layout/Layout";
 import { AuthContext } from "../context/AuthContext";
 import axios from "../api/axios";
+import RequestDetailsModal from "../components/RequestDetailsModal";
 
 const Requests = () => {
   const { user } = useContext(AuthContext);
   const [requests, setRequests] = useState([]);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,9 +46,9 @@ const Requests = () => {
     <Layout>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px" }}>
         <h2>My Requests</h2>
-        <a href="/create-request" className="btn-primary" style={{ display: "inline-block", textDecoration: "none" }}>
+        <Link to="/create-request" className="btn-primary" style={{ display: "inline-block", textDecoration: "none" }}>
           + New Request
-        </a>
+        </Link>
       </div>
 
       {loading ? (
@@ -74,8 +78,15 @@ const Requests = () => {
                       </span>
                     </td>
                     <td>
-                      <button className="btn-primary" style={{ padding: "0.4rem 0.8rem", fontSize: "0.8rem" }}>
-                        View
+                      <button 
+                        className="btn-primary" 
+                        style={{ padding: "0.4rem 0.8rem", fontSize: "0.8rem" }}
+                        onClick={() => {
+                          setSelectedRequest({...req, currentUserRole: user?.role});
+                          setIsModalOpen(true);
+                        }}
+                      >
+                        View Details
                       </button>
                     </td>
                   </tr>
@@ -92,6 +103,11 @@ const Requests = () => {
           </div>
         </div>
       )}
+      <RequestDetailsModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        request={selectedRequest} 
+      />
     </Layout>
   );
 };

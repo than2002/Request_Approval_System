@@ -6,6 +6,7 @@ import Register from "./pages/Register";
 import Requests from "./pages/Requests";
 import CreateRequest from "./pages/CreateRequest";
 import Approvals from "./pages/Approvals";
+import AdminPanel from "./pages/AdminPanel";
 
 function App() {
   return (
@@ -43,6 +44,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Approvals />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute>
+              <AdminPanel />
             </ProtectedRoute>
           }
         />

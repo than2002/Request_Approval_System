@@ -41,11 +41,11 @@ const Approvals = () => {
     }
   };
 
-  const getPriorityColor = (priority) => {
+  /* const getPriorityColor = (priority) => {
     if (priority === "high") return "var(--status-rejected)";
     if (priority === "medium") return "var(--status-pending)";
     return "var(--status-approved)";
-  };
+  }; */
 
   return (
     <Layout>
@@ -73,9 +73,9 @@ const Approvals = () => {
                       <span className="status-badge" style={{ background: "rgba(99, 102, 241, 0.15)", color: "var(--accent-color)", border: "1px solid rgba(99, 102, 241, 0.3)" }}>
                         {req.tcodeName}
                       </span>
-                      <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                      {/* <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
                         Priority: <strong style={{ color: getPriorityColor(req.priority) }}>{req.priority?.toUpperCase()}</strong>
-                      </span>
+                      </span> */}
                     </div>
                   </div>
                   <div style={{ textAlign: "right", fontSize: "0.85rem", color: "var(--text-muted)" }}>
