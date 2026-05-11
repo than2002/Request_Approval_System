@@ -134,9 +134,37 @@ Database (MongoDB)
 | | bcryptjs | Password hashing |
 | **Database** | MongoDB | NoSQL database |
 | | MongoDB Atlas (Prod) | Managed database service |
-| **DevOps** | Docker | Containerization |
-| | Git | Version control |
-| | GitHub Actions/Jenkins | CI/CD pipeline |
+| **DevOps** | Git | Version control |
+| | Render | Hosting (Backend) |
+| | Vercel | Hosting (Frontend) |
+
+---
+
+## Email Approval Workflow
+
+The system uses **Nodemailer** to facilitate the transition between approval tiers. This ensures that no request sits idle and managers are notified instantly.
+
+### Notification Flow
+
+```mermaid
+graph TD
+    A[User Submits Request] --> B{Level 1 Manager}
+    B -- Approve --> C{Level 2 Senior Manager}
+    B -- Reject --> D[User Notified: Rejected]
+    C -- Approve --> E{Level 3 Approver}
+    C -- Reject --> D
+    E -- Approve --> F[User Notified: FULLY APPROVED]
+    E -- Reject --> D
+    
+    style B fill:#f9f,stroke:#333,stroke-width:2px
+    style C fill:#ccf,stroke:#333,stroke-width:2px
+    style E fill:#cfc,stroke:#333,stroke-width:2px
+    style F fill:#9f9,stroke:#333,stroke-width:4px
+```
+
+1.  **Level 1 Interaction**: Direct links in the email allow for "Quick Approval" without logging in.
+2.  **State Transition**: Each approved level triggers a `Status Update` in the database and a `New Email` to the next responsible party.
+3.  **Finality**: The original requester receives a confirmation email only after the final sign-off (Level 3).
 
 ---
 

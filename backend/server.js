@@ -14,17 +14,22 @@ const app = express();
 // Security Middleware
 app.use(helmet());
 
-// Logging
-app.use(morgan('dev'));
+// Logging only verbose in development
+if (process.env.NODE_ENV !== 'production') {
+  app.use(morgan('dev'));
+} else {
+  app.use(morgan('combined'));
+}
 
-// Rate Limiting
+// Rate Limiter — 300 requests per 15 min 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100
+  max: 300,
+  message: { success: false, message: 'Too many requests. Please try again later.' }
 });
 app.use(limiter);
 
-// CORS
+
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   credentials: true
@@ -37,22 +42,26 @@ app.use(express.urlencoded({ extended: true }));
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Connected"))
-  .catch(err => console.error("MongoDB Error:", err));
+  .catch(err => {
+    console.error("MongoDB Connection Error:", err.message);
+    process.exit(1);
+  });
 
 // Health Route
 app.get('/api/health', (req, res) => {
   res.json({
     success: true,
-    message: "BACKEND WORKING"
+    message: "BACKEND WORKING",
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
-// Routes
+
 app.use('/api/auth', require('./src/routes/auth'));
 app.use('/api/requests', require('./src/routes/requests'));
 app.use('/api/approvals', require('./src/routes/approvals'));
 
-// 404
+
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -65,8 +74,18 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({
     success: false,
-    message: err.message || 'Internal Server Error'
+    message: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : err.message
   });
+});
+
+// Graceful shutdown handlers
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  process.exit(1);
 });
 
 const PORT = process.env.PORT || 5000;

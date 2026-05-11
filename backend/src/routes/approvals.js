@@ -27,7 +27,7 @@ router.get(
 router.get(
   '/history/:requestId',
   authenticate,
-  authorize('manager', 'senior-manager', 'approver', 'admin'),
+  authorize('user', 'manager', 'senior-manager', 'approver', 'admin'),
   ApprovalController.getApprovalHistory
 );
 

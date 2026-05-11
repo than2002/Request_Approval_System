@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
-const User = require('./src/models/User');
+const User = require('../src/models/User');
 
 dotenv.config();
 
@@ -35,7 +35,8 @@ const createAdmin = async () => {
             email: email.toLowerCase(),
             password,
             role: 'admin',
-            isActive: true
+            isActive: true,
+            isApproved: true
         });
 
         await adminUser.save();

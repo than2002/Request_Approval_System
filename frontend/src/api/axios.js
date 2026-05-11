@@ -4,6 +4,7 @@ const instance = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "/api",
 });
 
+// Attach JWT token to every request
 instance.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
 
@@ -13,5 +14,22 @@ instance.interceptors.request.use((config) => {
 
   return config;
 });
+
+// Auto-logout on 401 (expired/invalid token)
+instance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      const token = localStorage.getItem("token");
+      if (token) {
+        // Token exists but server rejected it — force logout
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.location.href = "/";
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default instance;

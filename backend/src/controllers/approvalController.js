@@ -25,7 +25,7 @@ exports.getApprovals = async (req, res) => {
       approvals
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: 'Server Error', error: error.message });
   }
 };
 
@@ -56,7 +56,7 @@ exports.getPendingApprovals = async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: 'Server Error', error: error.message });
   }
 };
 
@@ -67,29 +67,28 @@ exports.approveRequest = async (req, res) => {
     const { comments } = req.body;
 
     const user = await User.findById(req.user.id);
-    const userLevel = roleLevelMap[user.role];
-
-    if (!userLevel) {
-      return res.status(403).json({
-        success: false,
-        message: "You are not allowed to approve"
-      });
-    }
+    let userLevel = roleLevelMap[user.role];
 
     const request = await Request.findById(requestId);
-
     if (!request) {
-      return res.status(404).json({
-        success: false,
-        message: "Request not found"
-      });
+      return res.status(404).json({ success: false, message: "Request not found" });
+    }
+
+    // Admin can approve at whatever level the request is currently pending
+    if (user.role === 'admin') {
+      const statusMatch = request.overallStatus.match(/^level(\d)_pending$/);
+      if (!statusMatch) {
+        return res.status(400).json({ success: false, message: "Request is not currently pending approval." });
+      }
+      userLevel = parseInt(statusMatch[1]);
+    }
+
+    if (!userLevel) {
+      return res.status(403).json({ success: false, message: "You are not allowed to approve" });
     }
 
     if (request.overallStatus !== `level${userLevel}_pending`) {
-      return res.status(400).json({
-        success: false,
-        message: "Request is not pending at your level"
-      });
+      return res.status(400).json({ success: false, message: "Request is not pending at your level" });
     }
 
     // Update current level
@@ -98,7 +97,7 @@ exports.approveRequest = async (req, res) => {
     request.approvalWorkflow[levelKey].approvedAt = new Date();
     request.approvalWorkflow[levelKey].comments = comments || "";
 
-    // Move to next level or final
+    // Move to next level or mark final
     if (userLevel === 3) {
       request.overallStatus = "approved";
     } else {
@@ -107,20 +106,14 @@ exports.approveRequest = async (req, res) => {
 
     await request.save();
 
-    // Send emails based on level
+    // Send emails
     if (userLevel === 3) {
-      // Final approval - email original requester
       const requester = await User.findById(request.requestedBy);
-      if (requester && requester.email) {
-        await sendFinalApprovalEmail(requester.email, request);
-      }
+      if (requester && requester.email) await sendFinalApprovalEmail(requester.email, request);
     } else {
-      // Elevated to next step - email next manager
       const nextRole = userLevel === 1 ? 'senior-manager' : 'approver';
-      const nextManager = await User.findOne({ role: nextRole });
-      if (nextManager && nextManager.email) {
-        await sendApprovalEmail(nextManager, request, userLevel + 1);
-      }
+      const nextManager = await User.findOne({ role: nextRole, isApproved: true, isActive: true });
+      if (nextManager && nextManager.email) await sendApprovalEmail(nextManager, request, userLevel + 1);
     }
 
     await Approval.create({
@@ -132,14 +125,10 @@ exports.approveRequest = async (req, res) => {
       actionTakenAt: new Date()
     });
 
-    res.json({
-      success: true,
-      message: "Request approved successfully",
-      request
-    });
+    res.json({ success: true, message: "Request approved successfully", request });
 
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: 'Server Error', error: error.message });
   }
 };
 
@@ -149,59 +138,56 @@ exports.rejectRequest = async (req, res) => {
     const { requestId } = req.params;
     const { comments } = req.body;
 
-    const user = await User.findById(req.user.id);
-    const userLevel = roleLevelMap[user.role];
-
-    if (!userLevel) {
-      return res.status(403).json({
-        success: false,
-        message: "You are not allowed to reject"
-      });
+    if (!comments || !comments.trim()) {
+      return res.status(400).json({ success: false, message: "A comment/reason is required to reject a request." });
     }
 
-    const request = await Request.findById(requestId);
+    const user = await User.findById(req.user.id);
+    let userLevel = roleLevelMap[user.role];
 
+    const request = await Request.findById(requestId);
     if (!request) {
-      return res.status(404).json({
-        success: false,
-        message: "Request not found"
-      });
+      return res.status(404).json({ success: false, message: "Request not found" });
+    }
+
+    // Admin can reject at whatever level the request is pending
+    if (user.role === 'admin') {
+      const statusMatch = request.overallStatus.match(/^level(\d)_pending$/);
+      if (!statusMatch) {
+        return res.status(400).json({ success: false, message: "Request is not currently pending approval." });
+      }
+      userLevel = parseInt(statusMatch[1]);
+    }
+
+    if (!userLevel) {
+      return res.status(403).json({ success: false, message: "You are not allowed to reject" });
     }
 
     const levelKey = `level${userLevel}`;
-
     request.approvalWorkflow[levelKey].status = "rejected";
     request.approvalWorkflow[levelKey].approvedAt = new Date();
-    request.approvalWorkflow[levelKey].comments = comments || "";
-
+    request.approvalWorkflow[levelKey].comments = comments;
     request.overallStatus = "rejected";
-    request.rejectionReason = comments || "Rejected";
+    request.rejectionReason = comments;
 
     await request.save();
 
-    // Send rejection email to original requester
     const requester = await User.findById(request.requestedBy);
-    if (requester && requester.email) {
-      await sendRejectionEmail(requester.email, request);
-    }
+    if (requester && requester.email) await sendRejectionEmail(requester.email, request);
 
     await Approval.create({
       request: requestId,
       approvalLevel: userLevel,
       approver: user._id,
       status: "rejected",
-      comments: comments || "",
+      comments,
       actionTakenAt: new Date()
     });
 
-    res.json({
-      success: true,
-      message: "Request rejected successfully",
-      request
-    });
+    res.json({ success: true, message: "Request rejected successfully", request });
 
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: 'Server Error', error: error.message });
   }
 };
 
@@ -220,6 +206,14 @@ exports.getApprovalHistory = async (req, res) => {
       });
     }
 
+    // Authorization check: If the user is a standard 'user', they must own the request
+    if (req.user.role === 'user' && request.requestedBy._id.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to view this request's history"
+      });
+    }
+
     const approvals = await Approval.find({ request: requestId })
       .populate('approver', 'name email role')
       .sort({ actionTakenAt: 1 });
@@ -232,7 +226,7 @@ exports.getApprovalHistory = async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: 'Server Error', error: error.message });
   }
 };
 
@@ -283,7 +277,7 @@ exports.getManagerDashboard = async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: 'Server Error', error: error.message });
   }
 };
 
@@ -292,17 +286,21 @@ exports.quickAction = async (req, res) => {
   try {
     const { token } = req.params;
     const jwt = require('jsonwebtoken');
-    let decoded;
 
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).send('<h1>Server Configuration Error</h1>');
+    }
+
+    let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret_key');
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
     } catch (err) {
       return res.status(401).send('<h1>Link Expired or Invalid</h1><p>Please log in to the portal to manage your approvals.</p>');
     }
 
-    const { requestId, managerId, action, level } = decoded;
+    const { requestId, action, level } = decoded;
 
-    const request = global.MOCK_DB ? global.MOCK_DB.requests.find(r => r._id === requestId) : await Request.findById(requestId);
+    const request = await Request.findById(requestId);
 
     if (!request) {
       return res.status(404).send('<h1>Request Not Found</h1>');
@@ -318,36 +316,42 @@ exports.quickAction = async (req, res) => {
     if (action === 'approve') {
       request.approvalWorkflow[levelKey].status = 'approved';
       request.approvalWorkflow[levelKey].approvedAt = dateNow;
-      request.approvalWorkflow[levelKey].comments = "Quick Approved via Email";
+      request.approvalWorkflow[levelKey].comments = 'Quick Approved via Email';
 
       if (level === 3) {
-        request.overallStatus = "approved";
-
-        // Email original requester
-        const requester = global.MOCK_DB ? global.MOCK_DB.users.find(u => u._id === request.requestedBy || u.id === request.requestedBy) : await User.findById(request.requestedBy);
+        request.overallStatus = 'approved';
+        const requester = await User.findById(request.requestedBy);
         if (requester && requester.email) await sendFinalApprovalEmail(requester.email, request);
       } else {
         request.overallStatus = `level${level + 1}_pending`;
-
-        // Email next manager
         const nextRole = level === 1 ? 'senior-manager' : 'approver';
-        const nextManager = global.MOCK_DB ? global.MOCK_DB.users.find(u => u.role === nextRole) : await User.findOne({ role: nextRole });
+        const nextManager = await User.findOne({ role: nextRole, isApproved: true, isActive: true });
         if (nextManager && nextManager.email) await sendApprovalEmail(nextManager, request, level + 1);
       }
     } else if (action === 'reject') {
       request.approvalWorkflow[levelKey].status = 'rejected';
       request.approvalWorkflow[levelKey].approvedAt = dateNow;
-      request.approvalWorkflow[levelKey].comments = "Quick Rejected via Email";
+      request.approvalWorkflow[levelKey].comments = 'Quick Rejected via Email';
+      request.overallStatus = 'rejected';
+      request.rejectionReason = 'Quick Rejected via Email Link';
 
-      request.overallStatus = "rejected";
-      request.rejectionReason = "Quick Rejected via Email Link";
-
-      // Email original requester
-      const requester = global.MOCK_DB ? global.MOCK_DB.users.find(u => u._id === request.requestedBy || u.id === request.requestedBy) : await User.findById(request.requestedBy);
+      const requester = await User.findById(request.requestedBy);
       if (requester && requester.email) await sendRejectionEmail(requester.email, request);
     }
 
-    if (!global.MOCK_DB) await request.save();
+    await request.save();
+
+    // Create Approval history record
+    // managerId comes from the decoded JWT token payload
+    const { managerId: tokenManagerId } = decoded;
+    await Approval.create({
+      request: requestId,
+      approvalLevel: level,
+      approver: tokenManagerId || null,
+      status: action === 'approve' ? 'approved' : 'rejected',
+      comments: action === 'approve' ? 'Quick Approved via Email' : 'Quick Rejected via Email Link',
+      actionTakenAt: dateNow
+    });
 
     // Send visual HTML response directly to browser
     const color = action === 'approve' ? '#28a745' : '#dc3545';

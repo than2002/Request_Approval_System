@@ -8,6 +8,7 @@ exports.createRequest = async (req, res) => {
     const {
       title,
       description,
+      requestType,
       tcodeName,
       tcodeDescription,
       businessJustification,
@@ -15,17 +16,27 @@ exports.createRequest = async (req, res) => {
       dueDate
     } = req.body;
 
-    if (!title || !tcodeName || !businessJustification) {
+    if (!title || !businessJustification) {
       return res.status(400).json({
         success: false,
-        message: 'Title, T-Code Name and Business Justification are required'
+        message: 'Title and Business Justification are required'
+      });
+    }
+
+    const effectiveType = requestType || 'tcode';
+
+    // T-Code name is required only when request type is tcode
+    if (effectiveType === 'tcode' && !tcodeName) {
+      return res.status(400).json({
+        success: false,
+        message: 'T-Code Name is required for T-Code requests'
       });
     }
 
     const request = await Request.create({
       title,
       description,
-      requestType: 'tcode',
+      requestType: effectiveType,
       tcodeName,
       tcodeDescription,
       businessJustification,
@@ -91,6 +102,17 @@ exports.getRequestById = async (req, res) => {
       });
     }
 
+    // Authorization check: User must be the owner, or a manager/admin
+    const isOwner = request.requestedBy._id.toString() === req.user.id;
+    const isPrivileged = ['manager', 'senior-manager', 'approver', 'admin'].includes(req.user.role);
+
+    if (!isOwner && !isPrivileged) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to view this request'
+      });
+    }
+
     res.json({
       success: true,
       request
@@ -131,7 +153,17 @@ exports.updateRequest = async (req, res) => {
       });
     }
 
-    Object.assign(request, req.body);
+    const allowedUpdates = [
+      'title', 'description', 'tcodeName', 'tcodeDescription', 
+      'businessJustification', 'priority', 'dueDate'
+    ];
+
+    allowedUpdates.forEach(field => {
+      if (req.body[field] !== undefined) {
+        request[field] = req.body[field];
+      }
+    });
+
     await request.save();
 
     res.json({
@@ -175,15 +207,27 @@ exports.submitRequest = async (req, res) => {
       });
     }
 
-    //  Assign Managers (Level 1, 2, 3)
-    const level1 = await User.findOne({ role: 'manager' });
-    const level2 = await User.findOne({ role: 'senior-manager' });
-    const level3 = await User.findOne({ role: 'approver' });
+    //  Assign Managers (Level 1, 2, 3) — only approved & active users
+    const level1 = await User.findOne({ role: 'manager', isApproved: true, isActive: true });
+    const level2 = await User.findOne({ role: 'senior-manager', isApproved: true, isActive: true });
+    const level3 = await User.findOne({ role: 'approver', isApproved: true, isActive: true });
 
-    if (!level1 || !level2 || !level3) {
+    if (!level1) {
       return res.status(400).json({
         success: false,
-        message: 'All approval managers must be configured'
+        message: 'No active Level 1 Manager (manager role) is configured. Please contact admin.'
+      });
+    }
+    if (!level2) {
+      return res.status(400).json({
+        success: false,
+        message: 'No active Level 2 Senior Manager is configured. Please contact admin.'
+      });
+    }
+    if (!level3) {
+      return res.status(400).json({
+        success: false,
+        message: 'No active Level 3 Approver is configured. Please contact admin.'
       });
     }
 

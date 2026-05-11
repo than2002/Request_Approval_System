@@ -25,6 +25,8 @@ router.post('/create-manager', authenticate, authorize('admin'), AuthController.
  * @access  Public
  */
 router.post('/login', AuthController.login);
+router.post('/forgot-password', AuthController.forgotPassword);
+router.post('/reset-password/:token', AuthController.resetPassword);
 
 /**
  * @route   POST /api/auth/logout
@@ -49,6 +51,14 @@ router
  * @access  Private (Admin Only)
  */
 router.get('/users', authenticate, authorize('admin'), AuthController.getAllUsers);
+
+/**
+ * @route   PUT /api/auth/users/:id/approve
+ * @desc    Approve a user
+ * @access  Private (Admin Only)
+ */
+router.put('/users/:id/approve', authenticate, authorize('admin'), AuthController.approveUser);
+router.put('/users/:id/toggle-status', authenticate, authorize('admin'), AuthController.toggleUserStatus);
 
 /**
  * @route   DELETE /api/auth/users/:id

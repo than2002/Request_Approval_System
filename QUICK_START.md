@@ -398,6 +398,6 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 
 ---
 
-Happy coding! 🚀
+Happy coding! 
 
 If you run into issues, check the `WORKFLOW_GUIDE.md` for detailed explanations.

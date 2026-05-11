@@ -34,19 +34,27 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
   },
+  employeeCode: {
+    type: String,
+    unique: true,
+    sparse: true,
+  },
+  plant: {
+    type: String,
+    required: true,
+    default: "Not Specified"
+  },
+  isApproved: {
+    type: Boolean,
+    default: false,
+  },
   isActive: {
     type: Boolean,
     default: true,
   },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
+  resetPasswordToken: String,
+  resetPasswordExpires: Date,
+}, { timestamps: true });
 
 // Hash password before saving
 userSchema.pre('save', async function (next) {
@@ -68,4 +76,3 @@ userSchema.methods.comparePassword = async function (enteredPassword) {
 };
 
 module.exports = mongoose.model('User', userSchema);
-

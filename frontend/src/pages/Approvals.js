@@ -1,124 +1,137 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect } from "react";
 import Layout from "../layout/Layout";
-import { AuthContext } from "../context/AuthContext";
 import axios from "../api/axios";
+import { toast } from "react-hot-toast";
+import RequestDetailsModal from "../components/RequestDetailsModal";
+
+const LEVELS = { level1_pending: { label: "Level 1 — Manager Review", color: "#1d4ed8" }, level2_pending: { label: "Level 2 — Senior Manager Review", color: "#7c3aed" }, level3_pending: { label: "Level 3 — Final Approval", color: "#d97706" } };
+const fmtDate = d => new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 
 const Approvals = () => {
-  const { user } = useContext(AuthContext);
-  const [pendingApprovals, setPendingApprovals] = useState([]);
+  const [pending, setPending] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
+  const [comments, setComments] = useState({});
+  const [selectedRequest, setSelectedRequest] = useState(null);
 
-  useEffect(() => {
-    fetchPendingApprovals();
-  }, []);
+  useEffect(() => { fetchPending(); }, []);
 
-  const fetchPendingApprovals = async () => {
-    try {
-      setLoading(true);
-      const res = await axios.get("/approvals/pending");
-      setPendingApprovals(res.data.requests);
-    } catch (error) {
-      console.error("Error fetching pending approvals:", error);
-    } finally {
-      setLoading(false);
-    }
+  const fetchPending = async () => {
+    try { setLoading(true); const r = await axios.get("/approvals/pending"); setPending(r.data.requests || []); }
+    catch { toast.error("Failed to load approval queue."); }
+    finally { setLoading(false); }
   };
 
-  const handleApprovalAction = async (requestId, level, action) => {
+  const action = async (id, level, act) => {
+    const comment = comments[id]?.trim() || "";
+    if (act === "reject" && !comment) { toast.error("A rejection reason is required."); return; }
     try {
-      setActionLoading(requestId);
-      await axios.post(`/approvals/${requestId}/level/${level}/${action}`, {
-        comments: `Request ${action} by ${user.name} at Level ${level}`,
-      });
-      // Refresh list
-      fetchPendingApprovals();
-    } catch (error) {
-      console.error(`Error ${action} request:`, error);
-      alert(`Failed to ${action} request. Please try again.`);
-    } finally {
-      setActionLoading(null);
-    }
+      setActionLoading(id + act);
+      await axios.post(`/approvals/${id}/level/${level}/${act}`, { comments: comment || `${act === "approve" ? "Approved" : "Rejected"} via portal` });
+      toast.success(act === "approve" ? "Request approved." : "Request rejected.");
+      setComments(c => ({ ...c, [id]: "" }));
+      fetchPending();
+    } catch (err) { toast.error(err.response?.data?.message || `Failed to ${act}.`); }
+    finally { setActionLoading(null); }
   };
 
-  /* const getPriorityColor = (priority) => {
-    if (priority === "high") return "var(--status-rejected)";
-    if (priority === "medium") return "var(--status-pending)";
-    return "var(--status-approved)";
-  }; */
+  if (loading) return <Layout><div className="ap-loading"><div className="ap-loading-spinner" /><p>Loading...</p></div></Layout>;
 
   return (
     <Layout>
-      <div style={{ marginBottom: "30px" }}>
-        <h2>Approval Queue</h2>
-        <p>Review and manage T-Code requests assigned to you.</p>
+      <div className="ap-page-header">
+        <div className="ap-page-header-text">
+          <h2>Approval Queue</h2>
+          <p>Review and take action on access requests assigned to your approval level.</p>
+        </div>
+        {pending.length > 0 && <div className="apq-badge-count"><span>{pending.length}</span>{pending.length === 1 ? "Pending" : "Pending"}</div>}
       </div>
 
-      {loading ? (
-        <p>Loading pending approvals...</p>
+      {pending.length === 0 ? (
+        <div className="dash-table-card">
+          <div className="dash-empty" style={{ padding: "72px 24px" }}>
+            <div className="dash-empty-icon"><svg width="44" height="44" fill="none" stroke="#bbf7d0" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+            <h3 style={{ color: "#166534" }}>All caught up</h3>
+            <p>There are no pending approvals in your queue at this time.</p>
+          </div>
+        </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          {pendingApprovals.map((req) => {
-            // Determine which level this manager is approving based on the request's status
-            let currentApprovalLevel = 1;
-            if (req.overallStatus === "level2_pending") currentApprovalLevel = 2;
-            if (req.overallStatus === "level3_pending") currentApprovalLevel = 3;
+        <div className="apq-list">
+          {pending.map(req => {
+            const lvl = req.overallStatus === "level3_pending" ? 3 : req.overallStatus === "level2_pending" ? 2 : 1;
+            const lvlInfo = LEVELS[req.overallStatus] || { label: "Pending Review", color: "#1d4ed8" };
+            const processing = actionLoading === req._id + "approve" || actionLoading === req._id + "reject";
+            const hasComment = !!(comments[req._id]?.trim());
 
             return (
-              <div key={req._id} className="glass-card" style={{ padding: "24px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--glass-border)", paddingBottom: "15px", marginBottom: "15px" }}>
-                  <div>
-                    <h3 style={{ margin: "0 0 5px 0" }}>{req.title}</h3>
-                    <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                      <span className="status-badge" style={{ background: "rgba(99, 102, 241, 0.15)", color: "var(--accent-color)", border: "1px solid rgba(99, 102, 241, 0.3)" }}>
-                        {req.tcodeName}
-                      </span>
-                      {/* <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
-                        Priority: <strong style={{ color: getPriorityColor(req.priority) }}>{req.priority?.toUpperCase()}</strong>
-                      </span> */}
+              <div key={req._id} className="apq-card">
+                <div className="apq-level-bar" style={{ background: lvlInfo.color }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  {lvlInfo.label}
+                </div>
+                <div className="apq-card-body">
+                  <div className="apq-card-header">
+                    <div className="apq-card-title-area">
+                      <h3 className="apq-title">{req.title}</h3>
+                      <div className="apq-meta">
+                        {req.tcodeName && <span className="dash-tcode-badge">{req.tcodeName}</span>}
+                        <span className={`dash-priority-badge dash-priority--${req.priority || "medium"}`}>{req.priority || "medium"}</span>
+                        <button
+                          className="apq-detail-link"
+                          onClick={(e) => { e.stopPropagation(); setSelectedRequest(req); }}
+                        >
+                          View Details
+                        </button>
+                      </div>
+                    </div>
+                    <div className="apq-requester">
+                      <div className="apq-requester-avatar">{req.requestedBy?.name?.charAt(0)?.toUpperCase() || "?"}</div>
+                      <div>
+                        <div className="apq-requester-name">{req.requestedBy?.name || "Unknown"}</div>
+                        <div className="apq-requester-email">{req.requestedBy?.email}</div>
+                        <div className="apq-requester-date">Submitted {fmtDate(req.createdAt)}</div>
+                      </div>
                     </div>
                   </div>
-                  <div style={{ textAlign: "right", fontSize: "0.85rem", color: "var(--text-muted)" }}>
-                    <div>Requested By: <strong style={{color: "var(--text-main)"}}>{req.requestedBy?.name}</strong></div>
-                    <div>{new Date(req.createdAt).toLocaleDateString()}</div>
+
+                  {req.businessJustification && (
+                    <div className="apq-justification">
+                      <div className="apq-field-label">Business Justification</div>
+                      <p className="apq-field-value">{req.businessJustification}</p>
+                    </div>
+                  )}
+                  {req.tcodeDescription && (
+                    <div className="apq-justification">
+                      <div className="apq-field-label">T-Code Description</div>
+                      <p className="apq-field-value">{req.tcodeDescription}</p>
+                    </div>
+                  )}
+
+                  <div className="apq-comment-area">
+                    <div className="apq-field-label">Review Comment <span className="apq-required-note">— required to reject</span></div>
+                    <textarea className="glass-input" rows={3} placeholder="Enter your comments or rejection reason..." style={{ resize: "vertical", marginTop: "6px" }} value={comments[req._id] || ""} onChange={e => setComments(c => ({ ...c, [req._id]: e.target.value }))} />
                   </div>
-                </div>
 
-                <div style={{ marginBottom: "20px" }}>
-                  <h4 style={{ margin: "0 0 10px 0", fontSize: "0.95rem" }}>Business Justification</h4>
-                  <p style={{ margin: 0, fontSize: "0.95rem", lineHeight: "1.5" }}>{req.businessJustification}</p>
-                </div>
-
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", paddingTop: "15px", borderTop: "1px solid rgba(255, 255, 255, 0.03)" }}>
-                  <button 
-                    className="btn-primary" 
-                    style={{ background: "transparent", color: "var(--status-rejected)", border: "1px solid rgba(239, 68, 68, 0.3)" }}
-                    disabled={actionLoading === req._id}
-                    onClick={() => handleApprovalAction(req._id, currentApprovalLevel, "reject")}
-                  >
-                    Reject
-                  </button>
-                  <button 
-                    className="btn-primary" 
-                    style={{ background: "var(--status-approved)", boxShadow: "0 4px 14px 0 rgba(16, 185, 129, 0.39)" }}
-                    disabled={actionLoading === req._id}
-                    onClick={() => handleApprovalAction(req._id, currentApprovalLevel, "approve")}
-                  >
-                    {actionLoading === req._id ? "Processing..." : `Approve Level ${currentApprovalLevel}`}
-                  </button>
+                  <div className="apq-actions">
+                    <button className="apq-btn apq-btn--reject" disabled={processing || !hasComment} onClick={() => action(req._id, lvl, "reject")}>
+                      {actionLoading === req._id + "reject" ? "Processing..." : "Reject"}
+                    </button>
+                    <button className="apq-btn apq-btn--approve" disabled={processing} onClick={() => action(req._id, lvl, "approve")}>
+                      {actionLoading === req._id + "approve" ? "Processing..." : `Approve — Level ${lvl}`}
+                    </button>
+                  </div>
                 </div>
               </div>
             );
           })}
-          
-          {pendingApprovals.length === 0 && (
-            <div className="glass-card" style={{ textAlign: "center", padding: "40px 20px" }}>
-              <h3 style={{ color: "var(--text-muted)", margin: 0 }}>All caught up!</h3>
-              <p>You have no pending approvals in your queue at the moment.</p>
-            </div>
-          )}
         </div>
       )}
+
+      <RequestDetailsModal
+        isOpen={!!selectedRequest}
+        onClose={() => setSelectedRequest(null)}
+        request={selectedRequest}
+      />
     </Layout>
   );
 };

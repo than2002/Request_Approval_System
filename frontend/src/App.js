@@ -7,6 +7,8 @@ import Requests from "./pages/Requests";
 import CreateRequest from "./pages/CreateRequest";
 import Approvals from "./pages/Approvals";
 import AdminPanel from "./pages/AdminPanel";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 function App() {
   return (
@@ -14,6 +16,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
 
         <Route
           path="/dashboard"

@@ -1,183 +1,99 @@
 import { useState, useContext } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { toast } from "react-hot-toast";
 import { AuthContext } from "../context/AuthContext";
 
 const Login = () => {
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
-
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-  });
-
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const [showPass, setShowPass] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(""); // Clear previous errors
+    setError("");
     try {
+      setLoading(true);
       await login(form.email, form.password);
+      toast.success("Welcome back!");
       navigate("/dashboard");
     } catch (err) {
-      console.error("Login failed:", err);
-      const message = err.response?.data?.message || "Connection failed. Please check your backend URL.";
-      setError(message);
-    }
+      setError(err.response?.data?.message || "Invalid credentials. Please try again.");
+    } finally { setLoading(false); }
   };
 
-  return (
-    <div style={styles.container}>
-      {/* Decorative Background Elements */}
-      <div style={styles.blob1}></div>
-      <div style={styles.blob2}></div>
-      <div style={styles.blob3}></div>
+  const L = { display: "block", marginBottom: "6px", fontSize: "0.75rem", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.07em" };
 
-      <div className="glass-card" style={styles.card}>
-        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <h2 style={{ fontSize: '2rem', marginBottom: '10px', background: 'linear-gradient(to right, #6366f1, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            Welcome Back
-          </h2>
-          <p style={{ color: 'var(--text-muted)' }}>Sign in to access the Request Portal</p>
+  return (
+    <div style={{ minHeight: "100vh", width: "100vw", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+      {/* Background */}
+      <div style={{ position: "fixed", inset: 0, backgroundImage: "url('/jbm-bg.png')", backgroundSize: "cover", backgroundPosition: "center", zIndex: 0 }} />
+      <div style={{ position: "fixed", inset: 0, background: "rgba(8,16,40,0.62)", zIndex: 1 }} />
+
+      {/* Card */}
+      <div style={{ position: "relative", zIndex: 2, width: "100%", maxWidth: "420px", background: "#fff", borderRadius: "14px", padding: "40px", boxShadow: "0 28px 72px rgba(0,0,0,0.45)" }}>
+
+        {/* JBM Logo at top */}
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "28px", paddingBottom: "24px", borderBottom: "1px solid #f1f5f9" }}>
+          <div style={{ background: "linear-gradient(135deg,#1d4ed8,#2563eb)", width: "42px", height: "42px", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(29,78,216,0.35)", flexShrink: 0 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5Z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: "1rem", color: "#0f172a", lineHeight: 1.1 }}>JBM Group</div>
+            <div style={{ fontSize: "0.68rem", color: "#94a3b8", fontWeight: 500, letterSpacing: "0.07em", textTransform: "uppercase", marginTop: "2px" }}>Approval Management System</div>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: "22px" }}>
+          <h2 style={{ fontSize: "1.3rem", fontWeight: 800, color: "#0f172a", marginBottom: "5px" }}>Sign in to your account</h2>
+          <p style={{ color: "#64748b", fontSize: "0.85rem" }}>Enter your corporate credentials to continue.</p>
         </div>
 
         {error && (
-          <div style={styles.errorBox}>
-            <span style={{ marginRight: '8px' }}>⚠️</span>
+          <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderLeft: "4px solid #dc2626", color: "#991b1b", padding: "10px 14px", borderRadius: "6px", fontSize: "0.85rem", marginBottom: "18px" }}>
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <div>
-            <label style={styles.label}>Email Address</label>
-            <input
-              type="email"
-              name="email"
-              placeholder="name@jbmgroup.com"
-              value={form.email}
-              onChange={handleChange}
-              className="glass-input"
-              pattern=".*@jbmgroup\.com$"
-              title="Please log in with your @jbmgroup.com email address"
-              required
-            />
+            <label style={L}>Corporate Email</label>
+            <input className="glass-input" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="name@jbmgroup.com" required autoFocus />
           </div>
-
           <div>
-            <label style={styles.label}>Password</label>
-            <input
-              type="password"
-              name="password"
-              placeholder="••••••••"
-              value={form.password}
-              onChange={handleChange}
-              className="glass-input"
-              required
-            />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+              <label style={{ ...L, marginBottom: 0 }}>Password</label>
+              <Link to="/forgot-password" style={{ fontSize: "0.78rem", color: "#1d4ed8", fontWeight: 600, textDecoration: "none" }}>Forgot password?</Link>
+            </div>
+            <div style={{ position: "relative" }}>
+              <input className="glass-input" type={showPass ? "text" : "password"} value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="Enter your password" required style={{ paddingRight: "44px" }} />
+              <button type="button" onClick={() => setShowPass(v => !v)} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 0, display: "flex" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {showPass ? <><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></> : <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>}
+                </svg>
+              </button>
+            </div>
           </div>
-
-          <button type="submit" className="btn-primary" style={{ marginTop: '10px', padding: '14px', fontSize: '1rem', fontWeight: 'bold' }}>
-            Sign In
+          <button className="btn-primary" type="submit" disabled={loading} style={{ width: "100%", justifyContent: "center", padding: "12px", marginTop: "2px" }}>
+            {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
 
-        <p style={styles.footerText}>
-          Don’t have an account? <Link to="/register" style={styles.link}>Create one here</Link>
+        <p style={{ textAlign: "center", marginTop: "20px", fontSize: "0.85rem", color: "#64748b" }}>
+          Need access? <Link to="/register" style={{ color: "#1d4ed8", fontWeight: 600, textDecoration: "none" }}>Request an account</Link>
         </p>
+
+        <div style={{ marginTop: "22px", paddingTop: "16px", borderTop: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span style={{ fontSize: "0.7rem", color: "#94a3b8" }}>Secured by JBM Group IT · All sessions are monitored</span>
+        </div>
       </div>
     </div>
   );
-};
-
-const styles = {
-  container: {
-    height: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    background: "var(--bg-gradient)",
-    position: "relative",
-    overflow: "hidden",
-  },
-  card: {
-    width: "100%",
-    maxWidth: "420px",
-    padding: "40px",
-    position: "relative",
-    zIndex: 10,
-    boxSizing: 'border-box'
-  },
-  label: {
-    display: 'block',
-    marginBottom: '8px',
-    fontSize: '0.9rem',
-    color: 'var(--text-main)',
-    fontWeight: '500'
-  },
-  errorBox: {
-    background: 'rgba(239, 68, 68, 0.1)',
-    border: '1px solid rgba(239, 68, 68, 0.3)',
-    color: '#fca5a5',
-    padding: '12px 16px',
-    borderRadius: '8px',
-    marginBottom: '20px',
-    fontSize: '0.9rem',
-    display: 'flex',
-    alignItems: 'center'
-  },
-  footerText: {
-    textAlign: 'center',
-    marginTop: '30px',
-    fontSize: '0.95rem',
-    color: 'var(--text-muted)'
-  },
-  link: {
-    color: 'var(--accent-color)',
-    fontWeight: '600',
-    textDecoration: 'none',
-    transition: 'color 0.2s'
-  },
-  blob1: {
-    position: 'absolute',
-    top: '-10%',
-    left: '-10%',
-    width: '400px',
-    height: '400px',
-    background: 'radial-gradient(circle, rgba(99,102,241,0.25) 0%, rgba(255,255,255,0) 70%)',
-    borderRadius: '50%',
-    filter: 'blur(40px)',
-    zIndex: 1
-  },
-  blob2: {
-    position: 'absolute',
-    bottom: '-20%',
-    right: '-10%',
-    width: '500px',
-    height: '500px',
-    background: 'radial-gradient(circle, rgba(168,85,247,0.25) 0%, rgba(255,255,255,0) 70%)',
-    borderRadius: '50%',
-    filter: 'blur(50px)',
-    zIndex: 1
-  },
-  blob3: {
-    position: 'absolute',
-    top: '20%',
-    right: '15%',
-    width: '300px',
-    height: '300px',
-    background: 'radial-gradient(circle, rgba(16,185,129,0.2) 0%, rgba(255,255,255,0) 70%)',
-    borderRadius: '50%',
-    filter: 'blur(40px)',
-    zIndex: 1
-  }
 };
 
 export default Login;
